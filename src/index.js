@@ -7,6 +7,27 @@ const app = express();
 
 app.use(express.json());
 
+function logRequest(req, res, next) {
+  const { method, url } = req;
+  const logLabel = `[${method.toUpperCase()}] | ${url}`;
+
+  console.log(logLabel);
+
+  return next();
+}
+
+function validateProjectId(req, res, next) {
+  const { id } = req.params;
+
+  if (!isUuid(id)) {
+    return res.status(400).json({ erro: 'Invalid project Id' });
+  }
+  return next();
+}
+
+app.use(logRequest);
+app.use('/projects/:id', validateProjectId);
+
 app.get('/projects', (req, res) => {
   const { title } = req.query;
 
@@ -26,41 +47,47 @@ app.post('/projects', (req, res) => {
   return res.json(project);
 });
 
-app.put('/projects/:id', (req, res) => {
-  const { id } = req.params;
+app.put(
+  '/projects/:id',
+  /*validateProjectId,*/ (req, res) => {
+    const { id } = req.params;
 
-  const projectIndex = projects.findIndex((p) => p.id === id);
+    const projectIndex = projects.findIndex((p) => p.id === id);
 
-  if (projectIndex < 0) {
-    return res.status(400).json({ mesage: 'not found' });
+    if (projectIndex < 0) {
+      return res.status(400).json({ mesage: 'not found' });
+    }
+
+    const { title, owner } = req.body;
+
+    const project = {
+      id,
+      title,
+      owner,
+    };
+
+    projects[projectIndex] = project;
+
+    return res.json(project);
   }
+);
 
-  const { title, owner } = req.body;
+app.delete(
+  '/projects/:id',
+  /*validateProjectId,*/ (req, res) => {
+    const { id } = req.params;
 
-  const project = {
-    id,
-    title,
-    owner,
-  };
+    const projectIndex = projects.findIndex((p) => p.id === id);
 
-  projects[projectIndex] = project;
+    if (projectIndex < 0) {
+      return res.status(400).json({ mesage: 'not found' });
+    }
 
-  return res.json(project);
-});
+    projects.splice(projectIndex, 1);
 
-app.delete('/projects/:id', (req, res) => {
-  const { id } = req.params;
-
-  const projectIndex = projects.findIndex((p) => p.id === id);
-
-  if (projectIndex < 0) {
-    return res.status(400).json({ mesage: 'not found' });
+    return res.status(204).json();
   }
-
-  projects.splice(projectIndex, 1);
-
-  return res.status(204).json();
-});
+);
 
 app.listen(3333, () => {
   console.log('------------------------------------');
